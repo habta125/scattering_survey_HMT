@@ -9,9 +9,10 @@ def save_quicklook_plot(clean_cube, profile, dynspec, start, end, outpath, title
     for ax in axes.ravel():
         ax.grid(False)
 
+    # image panels stay in their native scale
     axes[0, 0].imshow(clean_cube.mean(0), aspect="auto", origin="lower", interpolation="nearest")
     axes[0, 0].set_xlabel("Pulse Phase (bins)")
-    axes[0, 0].set_ylabel("Frequency (Channels)") # Need to change with your observation frequency (MHz)
+    axes[0, 0].set_ylabel("Frequency (Channels)")
     axes[0, 0].set_title("Frequency Domain: mean over time")
 
     axes[0, 1].imshow(clean_cube.mean(1), aspect="auto", origin="lower", interpolation="nearest")
@@ -19,7 +20,16 @@ def save_quicklook_plot(clean_cube, profile, dynspec, start, end, outpath, title
     axes[0, 1].set_ylabel("Subintegration")
     axes[0, 1].set_title("Time Domain: mean over frequency")
 
-    axes[1, 0].plot(profile / max(profile), lw=1.2)
+    # baseline-subtracted + normalized profile
+    p = np.asarray(profile, dtype=float)
+    baseline, _ = estimate_baseline_and_rms(p)
+    p_bs = p - baseline
+    p_peak = np.max(p_bs)
+    if not np.isfinite(p_peak) or p_peak <= 0:
+        p_peak = 1.0
+    p_norm = p_bs / p_peak
+
+    axes[1, 0].plot(p_norm, lw=1.2)
     axes[1, 0].axvspan(start, end, color="tab:orange", alpha=0.2)
     axes[1, 0].set_xlabel("Pulse Phase (bins)")
     axes[1, 0].set_ylabel("Normalized Intensity")
@@ -63,12 +73,10 @@ def save_fit_plot(profile, fit_result, outpath, title=""):
     x = np.arange(len(y))
     fit_idx = fit_result["fit_idx"]
 
-    # --- baseline ---
     baseline, rms = estimate_baseline_and_rms(y)
     y_bs = y - baseline
     model_bs = np.asarray(fit_result["model_full"], dtype=float) - baseline
 
-    # --- normalization ---
     peak = np.max(y_bs)
     if not np.isfinite(peak) or peak <= 0:
         peak = 1.0
@@ -83,7 +91,6 @@ def save_fit_plot(profile, fit_result, outpath, title=""):
         gridspec_kw={"height_ratios": [3, 1, 1]}
     )
 
-    # --- Top: profile ---
     axes[0].plot(x, y_norm, label="Profile")
     axes[0].plot(x, model_norm, label=f"{fit_result['model_name']}")
     axes[0].axvspan(fit_idx[0], fit_idx[-1], alpha=0.15, label="fit window")
@@ -96,12 +103,10 @@ def save_fit_plot(profile, fit_result, outpath, title=""):
         f"{fit_result['classification']}"
     )
 
-    # --- Middle: residual ---
     axes[1].plot(x, resid_norm)
     axes[1].axhline(0, ls="--")
     axes[1].set_ylabel("Residual")
 
-    # --- Bottom: normalized signal ---
     axes[2].plot(x, y_norm, label="Signal")
     axes[2].axhline(3 * rms_norm, ls="--", label="3σ")
     axes[2].legend()
@@ -111,6 +116,7 @@ def save_fit_plot(profile, fit_result, outpath, title=""):
     plt.tight_layout()
     plt.savefig(outpath, dpi=150, bbox_inches="tight")
     plt.close(fig)
+
 
 def save_trace_plot(fit_result, outpath, title=""):
     chain = fit_result["mcmc_chain"]
