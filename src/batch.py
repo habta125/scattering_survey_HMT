@@ -29,30 +29,40 @@ def save_diagnostic_plot(
 ) -> None:
     x = np.arange(len(profile))
     model = fit_result["model_full"]
-    resid = fit_result["residuals_full"]
     fit_idx = fit_result["fit_idx"]
+
     y_sub, baseline, rms = subtract_baseline(profile)
+    model_sub = model - baseline
+
+    peak = np.max(y_sub)
+    if not np.isfinite(peak) or peak <= 0:
+        peak = 1.0
+
+    y_norm = y_sub / peak
+    model_norm = model_sub / peak
+    resid_norm = y_norm - model_norm
+    rms_norm = rms / peak
 
     fig, axes = plt.subplots(
         3, 1, figsize=(10, 8), sharex=True,
         gridspec_kw={"height_ratios": [3, 1, 1]}
     )
 
-    axes[0].plot(x, profile, label="Observed profile")
-    axes[0].plot(x, model, label="Best-fit model")
+    axes[0].plot(x, y_norm, label="Observed profile")
+    axes[0].plot(x, model_norm, label="Best-fit model")
     axes[0].axvspan(fit_idx[0], fit_idx[-1], alpha=0.15, label="Fit window")
-    axes[0].set_ylabel("Intensity")
+    axes[0].set_ylabel("Normalized Intensity")
     axes[0].set_title(title)
     axes[0].legend()
 
-    axes[1].plot(x, resid)
+    axes[1].plot(x, resid_norm)
     axes[1].axhline(0.0, linestyle="--")
     axes[1].set_ylabel("Residual")
 
-    axes[2].plot(x, y_sub, label="Baseline-subtracted")
-    axes[2].axhline(3 * rms, linestyle="--", label="3σ threshold")
+    axes[2].plot(x, y_norm, label="Normalized signal")
+    axes[2].axhline(3 * rms_norm, linestyle="--", label="3σ threshold")
     axes[2].set_xlabel("Phase (bin)")
-    axes[2].set_ylabel("Signal")
+    axes[2].set_ylabel("Normalized Intensity")
     axes[2].legend()
 
     plt.tight_layout()
