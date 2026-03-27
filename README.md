@@ -15,3 +15,6 @@ Modular pulsar scattering-timescale pipeline.
 ```bash
 python run_pipeline.py
 ```
+
+
+Note: the pipeline now circularly shifts each profile so the pulse peak is centered before fitting and plotting.
