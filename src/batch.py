@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 
 from .io import load_profile
-from .preprocess import estimate_snr, subtract_baseline
+from .preprocess import center_profile_on_peak, estimate_snr, subtract_baseline
 from .fitter import fit_gaussian_only, fit_scattered_gaussian
 from .qc import classify_fit
 
@@ -51,7 +51,7 @@ def save_diagnostic_plot(
 
     axes[2].plot(x, y_sub, label="Baseline-subtracted")
     axes[2].axhline(3 * rms, linestyle="--", label="3σ threshold")
-    axes[2].set_xlabel("Phase bin")
+    axes[2].set_xlabel("Phase (bin)")
     axes[2].set_ylabel("Signal")
     axes[2].legend()
 
@@ -90,8 +90,11 @@ def run_batch(
                 pscrunch=True,
             )
 
-            profile = record["profile"]
+            profile_raw = record["profile"]
             nbin = record["nbin"]
+            profile, phase_shift, peak_bin_before, target_bin = center_profile_on_peak(
+                profile_raw, target_bin=nbin // 2
+            )
 
             period_sec = resolve_value(row.get("period_sec", np.nan), record.get("period_sec", np.nan))
             freq_mhz = resolve_value(row.get("freq_mhz", np.nan), record.get("freq_mhz", np.nan))
@@ -146,6 +149,9 @@ def run_batch(
                 "nbin": nbin,
                 "bin_width_ms": bin_width_ms,
                 "snr": snr,
+                "phase_shift": phase_shift,
+                "peak_bin_before": peak_bin_before,
+                "target_bin": target_bin,
                 "mu_bin": mu,
                 "mu_bin_err": mu_err,
                 "sigma_bin": sigma_bin,
@@ -176,6 +182,9 @@ def run_batch(
                 "source_format": "unknown",
                 "period_sec": row.get("period_sec", np.nan),
                 "freq_mhz": row.get("freq_mhz", np.nan),
+                "phase_shift": np.nan,
+                "peak_bin_before": np.nan,
+                "target_bin": np.nan,
                 "flag": "BAD_FIT",
                 "status": f"ERROR: {exc}",
             })
@@ -185,9 +194,13 @@ def run_batch(
     df.to_csv(results_dir / "fit_summary.csv", index=False)
 
     if "flag" in df.columns:
-        df[df["flag"] == "GOOD"].to_csv(results_dir / "good_fits.csv", index=False)
-        df[df["flag"] == "BAD_FIT"].to_csv(results_dir / "bad_fits.csv", index=False)
-        df[df["flag"].isin(["UPPER_LIMIT", "NO_STRONG_SCATTERING", "MARGINAL", "LOW_SN"])].to_csv(
+        df[df["flag"].isin(["STRONG_SCATTERING", "WEAK_SCATTERING"])].to_csv(
+            results_dir / "good_fits.csv", index=False
+        )
+        df[df["flag"].isin(["BAD_FIT", "POOR_MODEL"])].to_csv(
+            results_dir / "bad_fits.csv", index=False
+        )
+        df[df["flag"].isin(["UPPER_LIMIT", "MARGINAL", "LOW_SN"])].to_csv(
             results_dir / "upper_limits.csv", index=False
         )
 
