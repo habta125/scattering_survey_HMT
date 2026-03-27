@@ -63,9 +63,27 @@ def save_fit_plot(profile, fit_result, outpath, title=""):
     x = np.arange(len(y))
     fit_idx = fit_result["fit_idx"]
 
-    fig, axes = plt.subplots(3, 1, figsize=(9, 8), sharex=True, gridspec_kw={"height_ratios": [3, 1, 1]})
-    axes[0].plot(x, y, label="Profile")
-    axes[0].plot(x, fit_result["model_full"], label=f"{fit_result['model_name']}")
+    # baseline subtract
+    baseline, rms = estimate_baseline_and_rms(y)
+    y_bs = y - baseline
+    model_bs = np.asarray(fit_result["model_full"], dtype=float) - baseline
+
+    # normalize by observed peak after baseline subtraction
+    peak = np.max(y_bs)
+    if not np.isfinite(peak) or peak <= 0:
+        peak = 1.0
+
+    y_norm = y_bs / peak
+    model_norm = model_bs / peak
+    resid_norm = y_norm - model_norm
+
+    fig, axes = plt.subplots(
+        3, 1, figsize=(9, 8), sharex=True,
+        gridspec_kw={"height_ratios": [3, 1, 1]}
+    )
+
+    axes[0].plot(x, y_norm, label="Profile")
+    axes[0].plot(x, model_norm, label=f"{fit_result['model_name']}")
     axes[0].axvspan(fit_idx[0], fit_idx[-1], alpha=0.15, label="fit window")
     axes[0].legend()
     axes[0].set_ylabel("Normalized Intensity")
@@ -76,13 +94,12 @@ def save_fit_plot(profile, fit_result, outpath, title=""):
         f"{fit_result['classification']}"
     )
 
-    axes[1].plot(x, fit_result["residuals_full"])
+    axes[1].plot(x, resid_norm)
     axes[1].axhline(0, ls="--")
     axes[1].set_ylabel("Residual")
 
-    baseline, rms = estimate_baseline_and_rms(y)
-    axes[2].plot(x, y - baseline)
-    axes[2].axhline(3 * rms, ls="--", label="3σ")
+    axes[2].plot(x, y_norm)
+    axes[2].axhline(3 * rms / peak, ls="--", label="3σ")
     axes[2].legend()
     axes[2].set_xlabel("Pulse Phase (bins)")
     axes[2].set_ylabel("Normalized Intensity")
