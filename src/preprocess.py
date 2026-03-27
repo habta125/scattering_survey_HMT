@@ -18,6 +18,20 @@ def subtract_baseline(profile: np.ndarray) -> tuple[np.ndarray, float, float]:
     return profile - baseline, baseline, rms
 
 
+def center_profile_on_peak(
+    profile: np.ndarray,
+    target_bin: int | None = None,
+) -> tuple[np.ndarray, int, int, int]:
+    y = np.asarray(profile, dtype=float)
+    nbin = len(y)
+    if target_bin is None:
+        target_bin = nbin // 2
+    peak_bin = int(np.argmax(y))
+    shift = int(target_bin - peak_bin)
+    y_shifted = np.roll(y, shift)
+    return y_shifted, shift, peak_bin, target_bin
+
+
 def estimate_snr(profile: np.ndarray) -> float:
     y, _, rms = subtract_baseline(profile)
     return float(np.max(y) / rms)
