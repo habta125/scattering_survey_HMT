@@ -11,7 +11,7 @@ def save_quicklook_plot(clean_cube, profile, dynspec, start, end, outpath, title
 
     axes[0, 0].imshow(clean_cube.mean(0), aspect="auto", origin="lower", interpolation="nearest")
     axes[0, 0].set_xlabel("Pulse Phase (bins)")
-    axes[0, 0].set_ylabel("Frequency (MHz)")
+    axes[0, 0].set_ylabel("Frequency (Channels)") # Need to change with your observation frequency (MHz)
     axes[0, 0].set_title("Frequency Domain: mean over time")
 
     axes[0, 1].imshow(clean_cube.mean(1), aspect="auto", origin="lower", interpolation="nearest")
