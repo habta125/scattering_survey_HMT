@@ -67,8 +67,8 @@ def save_quicklook_plot(clean_cube, profile, dynspec, start, end, outpath, title
     plt.savefig(outpath, dpi=150, bbox_inches="tight")
     plt.close(fig)
 
-
 def save_fit_plot(profile, fit_result, outpath, title=""):
+    print("DEBUG: normalized save_fit_plot is running")
     y = np.asarray(profile, dtype=float)
     x = np.arange(len(y))
     fit_idx = fit_result["fit_idx"]
@@ -82,6 +82,7 @@ def save_fit_plot(profile, fit_result, outpath, title=""):
         peak = 1.0
 
     y_norm = y_bs / peak
+    print("DEBUG y_norm min/max =", np.min(y_norm), np.max(y_norm))
     model_norm = model_bs / peak
     resid_norm = y_norm - model_norm
     rms_norm = rms / peak
